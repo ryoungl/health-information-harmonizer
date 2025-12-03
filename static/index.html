@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 健康信息调和器</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 0 16px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    #title-text-main {
+      display: block;
+      font-weight: 600;
+    }
+
+    #title-text-sub {
+      display: block;
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    #lang-toggle {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    #chat {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      min-height: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .msg {
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .msg.user {
+      text-align: right;
+      color: #333;
+    }
+
+    .msg.assistant {
+      text-align: left;
+      color: #222;
+    }
+
+    .msg.user .bubble {
+      display: inline-block;
+      max-width: 80%;
+      background: #dbeafe;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .msg.assistant .card {
+      max-width: 100%;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #111827;
+    }
+
+    .card-body {
+      font-size: 0.95rem;
+      color: #111827;
+    }
+
+    .msg.assistant .meta {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    #input-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    #question {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 0.95rem;
+    }
+
+    #send {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    #send:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .page-meta {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: center;
+    }
+
+    .drug-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      margin-right: 4px;
+      border-radius: 999px;
+      background: #e5f0ff;
+      font-size: 0.75rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.9rem;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <span id="title-text-main">AI 健康信息调和器</span>
+    <span id="title-text-sub">Health Information Harmonizer</span>
+    <button id="lang-toggle" type="button">中文 / EN</button>
+  </h1>
+
+  <div id="chat">
+    <div id="empty-state" class="empty-state">
+      你可以询问信息真伪、健康知识解释或风险提示。我会帮助你调和和澄清健康信息。
+    </div>
+  </div>
+
+  <div id="input-row">
+    <input
+      id="question"
+      type="text"
+      placeholder="例如：网上说布洛芬会伤肾，这是真的吗？"
+    />
+    <button id="send">发送</button>
+  </div>
+
+  <p class="page-meta">
+    本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。
+  </p>
+
+  <script>
+    let currentLang = "zh";
+
+    const texts = {
+      zh: {
+        titleMain: "AI 健康信息调和器",
+        titleSub: "Health Information Harmonizer",
+        placeholder: "例如：网上说布洛芬会伤肾，这是真的吗？",
+        disclaimer: "本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。",
+        empty: "你可以询问信息真伪、健康知识解释或风险提示。我会帮助你调和和澄清健康信息。",
+        sendLabel: "发送"
+      },
+      en: {
+        titleMain: "Health Information Harmonizer",
+        titleSub: "AI 健康信息调和器",
+        placeholder: "Example: Is it true that ibuprofen harms the kidneys?",
+        disclaimer: "This tool integrates, filters, and harmonizes publicly available health information. It does not provide diagnosis, treatment, or medication instructions.",
+        empty: "You may ask about information validity, health explanations, or risk signals. I will help harmonize and clarify health information.",
+        sendLabel: "Send"
+      }
+    };
+
+    const chatEl = document.getElementById("chat");
+    const inputEl = document.getElementById("question");
+    const sendBtn = document.getElementById("send");
+
+    function hideEmptyState() {
+      const empty = document.getElementById("empty-state");
+      if (empty && empty.parentNode) {
+        empty.parentNode.removeChild(empty);
+      }
+    }
+
+    function appendUserMessage(text) {
+      hideEmptyState();
+      const div = document.createElement("div");
+      div.className = "msg user";
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      div.appendChild(bubble);
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function appendAssistantCards(markdownText, extraMetaHtml) {
+      markdownText = markdownText.replace(/}\s*$/gm, "");
+      const wrapper = document.createElement("div");
+      wrapper.className = "msg assistant";
+
+      const sections = [];
+      const lines = markdownText.split(/\r?\n/);
+
+      let currentTitle = "说明";
+      let currentBody = [];
+
+      function pushSection() {
+        const bodyStr = currentBody.join("\n").trim();
+        if (!bodyStr) return;
+        sections.push({
+          title: currentTitle,
+          body: bodyStr,
+        });
+      }
+
+      for (const line of lines) {
+        const headingMatch = line.match(/^###\s*(.+)$/);
+        if (headingMatch) {
+          pushSection();
+          currentTitle = headingMatch[1].trim();
+          currentBody = [];
+        } else {
+          currentBody.push(line);
+        }
+      }
+      pushSection();
+
+      sections.forEach(section => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const titleDiv = document.createElement("div");
+        titleDiv.className = "card-title";
+
+        const cleanTitle = section.title.replace(/[【】{}]/g, "").trim();
+        titleDiv.textContent = cleanTitle;
+
+        const bodyDiv = document.createElement("div");
+        bodyDiv.className = "card-body";
+
+        const html = window.marked ? marked.parse(section.body) : section.body;
+        bodyDiv.innerHTML = html;
+
+        card.appendChild(titleDiv);
+        card.appendChild(bodyDiv);
+        wrapper.appendChild(card);
+      });
+
+      if (extraMetaHtml) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.innerHTML = extraMetaHtml;
+        wrapper.appendChild(meta);
+      }
+
+      chatEl.appendChild(wrapper);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    async function sendQuestion() {
+      let question = inputEl.value.trim();
+
+      if (!question) {
+        let placeholder = inputEl.placeholder.trim();
+        placeholder = placeholder.replace(/^例如[:：]?\s*/i, "");
+        placeholder = placeholder.replace(/^Example[:：]?\s*/i, "");
+        question = placeholder.trim();
+        if (!question) return;
+      }
+
+      appendUserMessage(question);
+      inputEl.value = "";
+      inputEl.focus();
+      sendBtn.disabled = true;
+
+      const thinkingDiv = document.createElement("div");
+      thinkingDiv.className = "msg assistant";
+      thinkingDiv.textContent = currentLang === "zh" ? "思考中…" : "Thinking…";
+      chatEl.appendChild(thinkingDiv);
+      chatEl.scrollTop = chatEl.scrollHeight;
+
+      try {
+        const resp = await fetch("/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            question,
+            lang: currentLang   // "zh" or "en"
+          })
+        });
+
+        const data = await resp.json();
+
+        chatEl.removeChild(thinkingDiv);
+
+        const drugs = (data.recognized_drugs && data.recognized_drugs.length)
+          ? data.recognized_drugs
+          : (data.matched_drugs || []);
+
+        const drugTags = drugs.length
+          ? drugs.map(d => `<span class="drug-tag">${d}</span>`).join("")
+          : "";
+
+        const disclaimerHtml = data.disclaimer
+          ? `<div>${data.disclaimer}</div>`
+          : "";
+
+        const extraMeta = drugTags + disclaimerHtml;
+
+        const answerText =
+          (data.analysis && data.analysis.summary) ||
+          data.answer ||
+          (currentLang === "zh"
+            ? "未能生成有效回答。"
+            : "No valid answer was generated.");
+
+        appendAssistantCards(answerText, extraMeta);
+      } catch (err) {
+        console.error(err);
+        chatEl.removeChild(thinkingDiv);
+        appendAssistantCards(
+          currentLang === "zh"
+            ? "请求失败，请检查后端服务是否已启动。"
+            : "Request failed. Please check if the backend service is running.",
+          ""
+        );
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener("click", sendQuestion);
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        sendQuestion();
+      }
+    });
+
+    function applyLanguage() {
+      const t = texts[currentLang];
+      const mainSpan = document.getElementById("title-text-main");
+      const subSpan = document.getElementById("title-text-sub");
+      if (mainSpan) mainSpan.textContent = t.titleMain;
+      if (subSpan) subSpan.textContent = t.titleSub;
+
+      inputEl.placeholder = t.placeholder;
+
+      const pageMeta = document.querySelector(".page-meta");
+      if (pageMeta) pageMeta.textContent = t.disclaimer;
+
+      const empty = document.getElementById("empty-state");
+      if (empty) empty.textContent = t.empty;
+
+      if (sendBtn) sendBtn.textContent = t.sendLabel;
+
+      document.title = t.titleMain;
+    }
+
+    const langToggle = document.getElementById("lang-toggle");
+    if (langToggle) {
+      langToggle.addEventListener("click", () => {
+        currentLang = currentLang === "zh" ? "en" : "zh";
+        applyLanguage();
+      });
+    }
+
+    applyLanguage();
+  </script>
+</body>
+</html>
