@@ -17,7 +17,7 @@ A lightweight API service for harmonizing online health information, identifying
 3. Start the container:
 
 ```bash
-docker run -p 8000:8000 --env-file .env ryoungl/health-information-harmonizer:0.1.0
+docker run -p 8000:8000 --env-file .env ryoungl/health-information-harmonizer:latest
 ````
 
 Open:

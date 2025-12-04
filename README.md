@@ -154,7 +154,7 @@ https://hub.docker.com/r/ryoungl/health-information-harmonizer
 
 ### Run in demo mode (LLM disabled)
 ```bash
-docker run -p 8000:8000 ryoungl/health-information-harmonizer:0.1.0
+docker run -p 8000:8000 ryoungl/health-information-harmonizer:latest
 ```
 
 Open:
@@ -174,7 +174,7 @@ LLM_MODEL=glm-4-flash
 
 Run:
 ```bash
-docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:0.1.0
+docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:latest
 ```
 
 ---
@@ -456,7 +456,7 @@ https://hub.docker.com/r/ryoungl/health-information-harmonizer
 ### Demo 模式（不启用 LLM）
 
 ```bash
-docker run -p 8000:8000 ryoungl/health-information-harmonizer:0.1.0
+docker run -p 8000:8000 ryoungl/health-information-harmonizer:latest
 ```
 
 ### 启用 LLM
@@ -471,7 +471,7 @@ LLM_MODEL=glm-4-flash
 
 运行：
 ```bash
-docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:0.1.0
+docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:latest
 ```
 
 ---
