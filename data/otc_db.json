@@ -1,9 +1,18 @@
 [
   {
+    "base_name": "ibuprofen",
     "generic_name": "布洛芬",
-    "aliases": ["布洛芬缓释胶囊", "芬必得", "美林", "ibuprofen"],
+    "aliases": [
+      "布洛芬缓释胶囊",
+      "芬必得",
+      "美林",
+      "ibuprofen"
+    ],
     "category": "解热镇痛药",
-    "indications": ["发热", "轻中度疼痛"],
+    "indications": [
+      "发热",
+      "轻中度疼痛"
+    ],
     "contraindications": [
       "对布洛芬或其他非甾体抗炎药过敏",
       "活动性消化性溃疡或消化道出血",
@@ -25,10 +34,20 @@
     ]
   },
   {
+    "base_name": "paracetamol",
     "generic_name": "对乙酰氨基酚",
-    "aliases": ["扑热息痛", "泰诺", "百服宁", "paracetamol", "acetaminophen"],
+    "aliases": [
+      "扑热息痛",
+      "泰诺",
+      "百服宁",
+      "paracetamol",
+      "acetaminophen"
+    ],
     "category": "解热镇痛药",
-    "indications": ["发热", "轻中度疼痛"],
+    "indications": [
+      "发热",
+      "轻中度疼痛"
+    ],
     "contraindications": [
       "对本品过敏",
       "严重肝功能不全"
@@ -45,10 +64,17 @@
     ]
   },
   {
+    "base_name": "loratadine",
     "generic_name": "氯雷他定",
-    "aliases": ["开瑞坦", "loratadine"],
+    "aliases": [
+      "开瑞坦",
+      "loratadine"
+    ],
     "category": "第二代抗组胺药",
-    "indications": ["过敏性鼻炎", "慢性荨麻疹等过敏性皮肤病引起的瘙痒"],
+    "indications": [
+      "过敏性鼻炎",
+      "慢性荨麻疹等过敏性皮肤病引起的瘙痒"
+    ],
     "contraindications": [
       "对本品或其他成分过敏"
     ],

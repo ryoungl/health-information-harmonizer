@@ -144,6 +144,41 @@ or
 
 ---
 
+## 🐳 Docker Deployment
+
+### Docker Hub Quick Start Guide
+
+```text
+https://hub.docker.com/r/ryoungl/health-information-harmonizer
+```
+
+### Run in demo mode (LLM disabled)
+```bash
+docker run -p 8000:8000 ryoungl/health-information-harmonizer:0.1.0
+```
+
+Open:
+```
+http://localhost:8000/docs
+```
+
+### Run with LLM enabled
+Create `.env`:
+
+```env
+LLM_PROVIDER=zhipu
+LLM_API_KEY=your_api_key_here
+LLM_API_BASE=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-4-flash
+```
+
+Run:
+```bash
+docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:0.1.0
+```
+
+---
+
 ## LLM Configuration
 
 HIH uses a unified client in `glm_client.py`. The provider is selected by environment variables.
@@ -406,6 +441,37 @@ http://127.0.0.1:8000
   "question": "Does ibuprofen harm the kidneys?",
   "lang": "en"
 }
+```
+
+---
+
+## 🐳 Docker 部署
+
+### Docker Hub 指引
+
+```text
+https://hub.docker.com/r/ryoungl/health-information-harmonizer
+```
+
+### Demo 模式（不启用 LLM）
+
+```bash
+docker run -p 8000:8000 ryoungl/health-information-harmonizer:0.1.0
+```
+
+### 启用 LLM
+准备 `.env`：
+
+```env
+LLM_PROVIDER=zhipu
+LLM_API_KEY=你的API密钥
+LLM_API_BASE=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-4-flash
+```
+
+运行：
+```bash
+docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:0.1.0
 ```
 
 ---
