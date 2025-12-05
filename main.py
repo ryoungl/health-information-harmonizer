@@ -52,6 +52,7 @@ def ask(query: Query):
             if lang == "zh"
             else "Please describe the health information or concern you have."
         )
+
         return {
             "echo": q,
             "matched_drugs": [],
@@ -59,6 +60,7 @@ def ask(query: Query):
             "analysis": {"summary": msg},
             "answer": msg,
             "disclaimer": disclaimer,
+            "sources": []
         }
 
     # Extract drug names via LLM.
@@ -94,6 +96,34 @@ def ask(query: Query):
                     f"Please consult a doctor or pharmacist."
                 )
 
+        # Sources — no URLs, no DB dependencies
+        if lang == "zh":
+            sources = [
+                {
+                    "name": "本地药物数据库",
+                    "note": f"匹配到药物：{', '.join(d['generic_name'] for d in known)}",
+                    "url": None
+                },
+                {
+                    "name": "AI 信息调和与解释",
+                    "note": "回答内容基于本地结构化药物信息及语言模型推理生成。",
+                    "url": None
+                }
+            ]
+        else:
+            sources = [
+                {
+                    "name": "Local Drug Database",
+                    "note": f"Matched drugs: {', '.join(d['generic_name'] for d in known)}",
+                    "url": None
+                },
+                {
+                    "name": "AI Harmonization",
+                    "note": "Answer generated using structured drug information and model reasoning.",
+                    "url": None
+                }
+            ]
+
         return {
             "echo": q,
             "matched_drugs": [d["generic_name"] for d in known],
@@ -101,23 +131,45 @@ def ask(query: Query):
             "analysis": {"summary": glm_answer},
             "answer": glm_answer,
             "disclaimer": disclaimer,
+            "sources": sources
         }
 
-    # Case 2: drugs recognized but none found in local database.
-    if unknown:
-        msg = (
-            f"你提到的药物：{', '.join(set(unknown))} 未收录在本系统数据库中。在不了解成分的情况下不建议盲目合并用药。"
-            if lang == "zh"
-            else f"The drugs you mentioned ({', '.join(set(unknown))}) are not in the local database. "
-                 f"Avoid combining medicines without professional advice."
-        )
+    # Case 2: drugs recognized but none found in local database → fallback to LLM.
+    if unknown and not known:
+        # 让 LLM 正常解释这些药物，drug_info 列表传空
+        glm_answer = ask_glm(q, [], lang=lang)
+
+        # 追加一个轻度提示：本地库没结构化匹配，但已用通用医学知识解释
+        if lang == "zh":
+            glm_answer += (
+                f"\n\n【系统说明】检测到以下药物名称：{', '.join(set(unknown))}。"
+                f"这些名称未在本地结构化数据库中匹配到标准药物条目，我会基于通用医学资料和语境进行解释，仅作一般信息参考。"
+            )
+        else:
+            glm_answer += (
+                f"\n\n[System note] I detected the following drug names: {', '.join(set(unknown))}. "
+                f"They are not mapped to a structured local entry, so I responded based on general medical knowledge and context. "
+                f"This is for general information only."
+            )
+
         return {
             "echo": q,
             "matched_drugs": [],
             "recognized_drugs": normalized,
-            "analysis": {"summary": msg},
-            "answer": msg,
+            "analysis": {"summary": glm_answer},
+            "answer": glm_answer,
             "disclaimer": disclaimer,
+            "sources": [
+                {
+                    "name": "AI 信息调和与解释" if lang == "zh" else "AI Harmonization",
+                    "note": (
+                        "回答内容基于通用医学资料和模型对别名/俗称的理解生成。"
+                        if lang == "zh"
+                        else "Answer generated from general medical knowledge and model understanding of aliases/nicknames."
+                    ),
+                    "url": None
+                }
+            ]
         }
 
     # Case 3: no drug names recognized → general health-information harmonization.
@@ -134,4 +186,5 @@ def ask(query: Query):
         "analysis": {"summary": msg},
         "answer": msg,
         "disclaimer": disclaimer,
+        "sources": []
     }
