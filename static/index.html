@@ -1,485 +1,437 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <title>AI 健康信息调和器</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 0 16px;
-    background: #f5f5f5;
-  }
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI 健康信息调和器</title>
 
-  h1 {
-    font-size: 1.5rem;
-    text-align: center;
-    position: relative;
-    margin-bottom: 16px;
-  }
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-  #title-text-main {
-    display: block;
-    font-weight: 600;
-  }
-
-  #title-text-sub {
-    display: block;
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin-top: 4px;
-  }
-
-  #lang-toggle {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.8rem;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid #d1d5db;
-    background: #ffffff;
-    cursor: pointer;
-  }
-
-  #chat {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    min-height: 300px;
-    max-height: 500px;
-    overflow-y: auto;
-    margin-bottom: 12px;
-  }
-
-  .msg {
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-
-  .msg.user {
-    text-align: right;
-    color: #333;
-  }
-
-  .msg.assistant {
-    text-align: left;
-    color: #222;
-  }
-
-  .msg.user .bubble {
-    display: inline-block;
-    max-width: 80%;
-    background: #dbeafe;
-    border-radius: 8px;
-    padding: 8px 10px;
-  }
-
-  .msg.assistant .card {
-    max-width: 100%;
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    margin-bottom: 8px;
-    display: block;
-  }
-
-  .card {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    margin-bottom: 8px;
-  }
-
-  .card-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #111827;
-  }
-
-  .card-body {
-    font-size: 0.95rem;
-    color: #111827;
-  }
-
-  .msg.assistant .meta {
-    margin-top: 6px;
-    font-size: 0.8rem;
-    color: #6b7280;
-  }
-
-  #input-row {
-    margin-top: 12px;
-    display: flex;
-    gap: 8px;
-  }
-
-  #question {
-    flex: 1;
-    padding: 8px;
-    border-radius: 6px;
-    border: 1px solid #d1d5db;
-    font-size: 0.95rem;
-  }
-
-  #send {
-    padding: 8px 16px;
-    border-radius: 6px;
-    border: none;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 0.95rem;
-    cursor: pointer;
-  }
-
-  #send:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-
-  .page-meta {
-    margin-top: 8px;
-    font-size: 0.8rem;
-    color: #6b7280;
-    text-align: center;
-  }
-
-  .drug-tag {
-    display: inline-block;
-    padding: 2px 6px;
-    margin-right: 4px;
-    border-radius: 999px;
-    background: #e5f0ff;
-    font-size: 0.75rem;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: #9ca3af;
-    font-size: 0.9rem;
-    margin-top: 40px;
-  }
-
-  /* 手机適配 */
-  @media (max-width: 600px) {
-    body {
-      max-width: 100%;
-      margin: 0;
-      padding: 10px 10px;
-    }
-
-    h1 {
-      font-size: 1.2rem;
-      margin-bottom: 10px;
-    }
-
-    #title-text-sub {
-      font-size: 0.8rem;
-    }
-
-    #lang-toggle {
-      font-size: 0.75rem;
-      padding: 2px 8px;
-    }
-
-    #chat {
-      padding: 12px;
-      min-height: 45vh;
-      max-height: 60vh;
-    }
-
-    .msg.user .bubble,
-    .msg.assistant .card,
-    .card {
-      max-width: 100%;
-      font-size: 0.9rem;
-    }
-
-    .card-body {
-      font-size: 0.9rem;
-    }
-
-    .empty-state {
-      font-size: 0.85rem;
-      margin-top: 24px;
-    }
-
-    #input-row {
-      margin-top: 10px;
-      gap: 6px;
-    }
-
-    #question {
-      padding: 10px;
-      font-size: 1rem;
-    }
-
-    #send {
-      padding: 10px 14px;
-      font-size: 0.95rem;
-      white-space: nowrap;
-    }
-
-    .page-meta {
-      font-size: 0.75rem;
-      line-height: 1.4;
-    }
-  }
-</style>
-</head>
-<body>
-  <h1>
-    <span id="title-text-main">AI 健康信息调和器</span>
-    <span id="title-text-sub">Health Information Harmonizer</span>
-    <button id="lang-toggle" type="button">中文 / EN</button>
-  </h1>
-
-  <div id="chat">
-    <div id="empty-state" class="empty-state">
-      你可以询问信息真伪、健康知识解释或风险提示。我会帮助你调和和澄清健康信息。
-    </div>
-  </div>
-
-  <div id="input-row">
-    <input
-      id="question"
-      type="text"
-      placeholder="例如：网上说布洛芬会伤肾，这是真的吗？"
-    />
-    <button id="send">发送</button>
-  </div>
-
-  <p class="page-meta">
-    本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。
-  </p>
-
-  <script>
-    let currentLang = "zh";
-
-    const texts = {
-      zh: {
-        titleMain: "AI 健康信息调和器",
-        titleSub: "Health Information Harmonizer",
-        placeholder: "例如：网上说布洛芬会伤肾，这是真的吗？",
-        disclaimer: "本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。",
-        empty: "你可以询问信息真伪、健康知识解释或风险提示。我会帮助你调和和澄清健康信息。",
-        sendLabel: "发送"
-      },
-      en: {
-        titleMain: "Health Information Harmonizer",
-        titleSub: "AI 健康信息调和器",
-        placeholder: "Example: Is it true that ibuprofen harms the kidneys?",
-        disclaimer: "This tool integrates, filters, and harmonizes publicly available health information. It does not provide diagnosis, treatment, or medication instructions.",
-        empty: "You may ask about information validity, health explanations, or risk signals. I will help harmonize and clarify health information.",
-        sendLabel: "Send"
-      }
-    };
-
-    const chatEl = document.getElementById("chat");
-    const inputEl = document.getElementById("question");
-    const sendBtn = document.getElementById("send");
-
-    function hideEmptyState() {
-      const empty = document.getElementById("empty-state");
-      if (empty && empty.parentNode) {
-        empty.parentNode.removeChild(empty);
-      }
-    }
-
-    function appendUserMessage(text) {
-      hideEmptyState();
-      const div = document.createElement("div");
-      div.className = "msg user";
-
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = text;
-
-      div.appendChild(bubble);
-      chatEl.appendChild(div);
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    function appendAssistantCards(markdownText, extraMetaHtml) {
-      markdownText = markdownText.replace(/}\s*$/gm, "");
-      const wrapper = document.createElement("div");
-      wrapper.className = "msg assistant";
-
-      const sections = [];
-      const lines = markdownText.split(/\r?\n/);
-
-      let currentTitle = "说明";
-      let currentBody = [];
-
-      function pushSection() {
-        const bodyStr = currentBody.join("\n").trim();
-        if (!bodyStr) return;
-        sections.push({
-          title: currentTitle,
-          body: bodyStr,
-        });
+    <style>
+      :root {
+        --bg: #f4f4f5;
+        --card-bg: #ffffff;
+        --fg: #1f1f1f;
+        --muted: #666666;
+        --border: #dddddd;
+        --border-subtle: #cccccc;
+        --primary: #2563eb;
       }
 
-      for (const line of lines) {
-        const headingMatch = line.match(/^###\s*(.+)$/);
-        if (headingMatch) {
-          pushSection();
-          currentTitle = headingMatch[1].trim();
-          currentBody = [];
-        } else {
-          currentBody.push(line);
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0d0d0f;
+          --card-bg: #1a1a1c;
+          --fg: #f2f2f2;
+          --muted: #aaaaaa;
+          --border: #333333;
+          --border-subtle: #555555;
+          --primary: #3b82f6;
         }
       }
-      pushSection();
 
-      sections.forEach(section => {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "card-title";
-
-        const cleanTitle = section.title.replace(/[【】{}]/g, "").trim();
-        titleDiv.textContent = cleanTitle;
-
-        const bodyDiv = document.createElement("div");
-        bodyDiv.className = "card-body";
-
-        const html = window.marked ? marked.parse(section.body) : section.body;
-        bodyDiv.innerHTML = html;
-
-        card.appendChild(titleDiv);
-        card.appendChild(bodyDiv);
-        wrapper.appendChild(card);
-      });
-
-      if (extraMetaHtml) {
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.innerHTML = extraMetaHtml;
-        wrapper.appendChild(meta);
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
+          sans-serif;
+        height: 100vh;
+        overflow: hidden;
       }
 
-      chatEl.appendChild(wrapper);
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    async function sendQuestion() {
-      let question = inputEl.value.trim();
-
-      if (!question) {
-        let placeholder = inputEl.placeholder.trim();
-        placeholder = placeholder.replace(/^例如[:：]?\s*/i, "");
-        placeholder = placeholder.replace(/^Example[:：]?\s*/i, "");
-        question = placeholder.trim();
-        if (!question) return;
+      /* HEADER */
+      #header {
+        width: 100%;
+        max-width: 800px;
+        margin: 14px auto 8px;
+        position: relative;
+        text-align: center;
       }
 
-      appendUserMessage(question);
-      inputEl.value = "";
-      inputEl.focus();
-      sendBtn.disabled = true;
+      h1 {
+        margin: 0;
+        line-height: 1.3;
+      }
 
-      const thinkingDiv = document.createElement("div");
-      thinkingDiv.className = "msg assistant";
-      thinkingDiv.textContent = currentLang === "zh" ? "思考中…" : "Thinking…";
-      chatEl.appendChild(thinkingDiv);
-      chatEl.scrollTop = chatEl.scrollHeight;
+      #title-text-main {
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: block;
+      }
 
-      try {
-        const resp = await fetch("/ask", {
+      #title-text-sub {
+        font-size: 0.85rem;
+        color: var(--muted);
+        display: block;
+      }
+
+      #lang-toggle {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border-subtle);
+        background: var(--card-bg);
+        cursor: pointer;
+        font-size: 0.78rem;
+        color: var(--fg);
+      }
+
+      /* APP AREA — unified white block */
+      #app {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        background: var(--card-bg);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 150px);
+        overflow: hidden;
+      }
+
+      /* SCROLLABLE CHAT HISTORY */
+      #history {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      /* WELCOME PAGE */
+      #welcome-screen {
+        max-height: calc(100vh - 260px);
+        overflow-y: auto;
+        padding: 28px 28px;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      #welcome-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--fg);
+      }
+
+      #welcome-desc {
+        font-size: 0.92rem;
+        margin-bottom: 14px;
+      }
+
+      #example-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .example {
+        background: var(--bg);
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid var(--border-subtle);
+        text-align: left;
+        transition: background 0.15s, transform 0.15s;
+      }
+
+      .example:hover {
+        background: rgba(0, 0, 0, 0.07);
+        transform: translateY(-1px);
+      }
+
+      /* MESSAGES */
+      .msg {
+        margin-bottom: 14px;
+        line-height: 1.6;
+      }
+
+      .msg.assistant {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      /* DISCLAIMER inside unified white block */
+      #disclaimer {
+        text-align: center;
+        font-size: 0.75rem;
+        color: var(--muted);
+        padding: 10px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--card-bg);
+        flex-shrink: 0;
+      }
+
+      /* INPUT AREA — bottom part of white block */
+      #input-area {
+        display: flex;
+        padding: 10px;
+        border-top: 1px solid var(--border);
+        background: var(--card-bg);
+        flex-shrink: 0;
+      }
+
+      #question {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        background: var(--card-bg);
+        color: var(--fg);
+        font-size: 1rem;
+        resize: none;
+        overflow-y: hidden;
+        line-height: 1.45;
+      }
+
+      #send-btn {
+        margin-left: 10px;
+        padding: 0 18px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      @media (min-width: 900px) {
+        #app {
+          border-radius: 14px;
+          box-shadow: 0 3px 14px rgba(0, 0, 0, 0.06);
+        }
+
+        #welcome-screen {
+          padding: 32px 40px;
+          max-height: calc(100vh - 260px);
+        }
+      }
+
+      /* SOURCE CARD — clean, compact, card-style */
+      .source-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-top: 14px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .source-card-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--fg);
+      }
+
+      .source-card-note {
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .source-card-link {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .source-card-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="header">
+      <h1>
+        <span id="title-text-main">AI 健康信息调和器</span>
+        <span id="title-text-sub">Health Information Harmonizer</span>
+      </h1>
+      <button id="lang-toggle">中文 / EN</button>
+    </div>
+
+    <div id="app">
+      <div id="history"></div>
+
+      <div id="disclaimer">
+        本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。
+      </div>
+
+      <div id="input-area">
+        <textarea
+          id="question"
+          rows="1"
+          placeholder="例如：网上说布洛芬会伤肾，是真的吗？"
+        ></textarea>
+        <button id="send-btn">发送</button>
+      </div>
+    </div>
+
+    <script>
+      /* LANGUAGE PACK */
+      const UI_TEXT = {
+        zh: {
+          title_main: "AI 健康信息调和器",
+          title_sub: "Health Information Harmonizer",
+          disclaimer:
+            "本工具用于整合、过滤和解释公开的健康信息，仅作一般性参考，不提供诊断、治疗或药物建议。",
+          placeholder: "例如：网上说布洛芬会伤肾，是真的吗？",
+          welcome_title: "欢迎使用 AI 健康信息调和器",
+          welcome_desc:
+            "你可以询问信息真伪、健康解释或风险提示，我会帮助你调和和澄清健康信息。",
+          examples: [
+            "网上说布洛芬会伤肾，这是真的吗？",
+            "对乙酰氨基酚和布洛芬应该怎么选？",
+            "感冒时能不能一起吃维C和其他药？"
+          ],
+          send: "发送",
+          lang_button: "中文 / EN"
+        },
+        en: {
+          title_main: "AI Health Information Harmonizer",
+          title_sub: "Health Information Harmonizer",
+          disclaimer:
+            "This tool summarizes and clarifies public health information. It does not provide medical diagnosis or treatment.",
+          placeholder: "Example: Does ibuprofen really harm the kidneys?",
+          welcome_title: "Welcome to the Health Information Harmonizer",
+          welcome_desc:
+            "Ask me about accuracy, risks or interpretation of health information. I will help you clarify it.",
+          examples: [
+            "Does ibuprofen really harm the kidneys?",
+            "How should I choose between acetaminophen and ibuprofen?",
+            "Can I take vitamin C together with other cold medicines?"
+          ],
+          send: "Send",
+          lang_button: "中文 / EN"
+        }
+      };
+
+      let CURRENT_LANG = "zh";
+
+      /* WELCOME PAGE RENDER */
+      function renderWelcome() {
+        const h = document.getElementById("history");
+        h.innerHTML = `
+          <div id="welcome-screen">
+            <div id="welcome-title">${UI_TEXT[CURRENT_LANG].welcome_title}</div>
+            <div id="welcome-desc">${UI_TEXT[CURRENT_LANG].welcome_desc}</div>
+            <div id="example-list">
+              ${UI_TEXT[CURRENT_LANG].examples
+                .map(
+                  ex => `<div class="example" data-q="${ex}">${ex}</div>`
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+        document.querySelectorAll(".example").forEach(e => {
+          e.onclick = () => sendMessage(e.dataset.q);
+        });
+      }
+
+      renderWelcome();
+
+      /* MESSAGE SENDER */
+      async function sendMessage(text) {
+        const history = document.getElementById("history");
+
+        const userMsg = document.createElement("div");
+        userMsg.className = "msg user";
+        userMsg.textContent = text;
+        history.appendChild(userMsg);
+
+        const res = await fetch("/ask", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            question,
-            lang: currentLang   // "zh" or "en"
-          })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text, lang: CURRENT_LANG })
         });
 
-        const data = await resp.json();
+        const data = await res.json();
 
-        chatEl.removeChild(thinkingDiv);
+        const reply = document.createElement("div");
+        reply.className = "msg assistant";
 
-        const drugs = (data.recognized_drugs && data.recognized_drugs.length)
-          ? data.recognized_drugs
-          : (data.matched_drugs || []);
+        reply.innerHTML =
+          marked.parse(data.answer || "(no response)") +
+          renderSources(data.sources);
 
-        const drugTags = drugs.length
-          ? drugs.map(d => `<span class="drug-tag">${d}</span>`).join("")
-          : "";
+        history.appendChild(reply);
 
-        const disclaimerHtml = data.disclaimer
-          ? `<div>${data.disclaimer}</div>`
-          : "";
-
-        const extraMeta = drugTags + disclaimerHtml;
-
-        const answerText =
-          (data.analysis && data.analysis.summary) ||
-          data.answer ||
-          (currentLang === "zh"
-            ? "未能生成有效回答。"
-            : "No valid answer was generated.");
-
-        appendAssistantCards(answerText, extraMeta);
-      } catch (err) {
-        console.error(err);
-        chatEl.removeChild(thinkingDiv);
-        appendAssistantCards(
-          currentLang === "zh"
-            ? "请求失败，请检查后端服务是否已启动。"
-            : "Request failed. Please check if the backend service is running.",
-          ""
-        );
-      } finally {
-        sendBtn.disabled = false;
+        history.scrollTop = history.scrollHeight;
       }
-    }
 
-    sendBtn.addEventListener("click", sendQuestion);
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        sendQuestion();
-      }
-    });
+      /* SEND BUTTON */
+      document.getElementById("send-btn").onclick = () => {
+        const q = document.getElementById("question").value.trim();
+        if (!q) return;
+        document.getElementById("question").value = "";
+        sendMessage(q);
+      };
 
-    function applyLanguage() {
-      const t = texts[currentLang];
-      const mainSpan = document.getElementById("title-text-main");
-      const subSpan = document.getElementById("title-text-sub");
-      if (mainSpan) mainSpan.textContent = t.titleMain;
-      if (subSpan) subSpan.textContent = t.titleSub;
+      /* LANGUAGE SWITCH */
+      document.getElementById("lang-toggle").onclick = () => {
+        CURRENT_LANG = CURRENT_LANG === "zh" ? "en" : "zh";
 
-      inputEl.placeholder = t.placeholder;
+        document.getElementById("title-text-main").textContent =
+          UI_TEXT[CURRENT_LANG].title_main;
+        document.getElementById("title-text-sub").textContent =
+          UI_TEXT[CURRENT_LANG].title_sub;
+        document.getElementById("disclaimer").textContent =
+          UI_TEXT[CURRENT_LANG].disclaimer;
+        document.getElementById("question").placeholder =
+          UI_TEXT[CURRENT_LANG].placeholder;
+        document.getElementById("send-btn").textContent =
+          UI_TEXT[CURRENT_LANG].send;
 
-      const pageMeta = document.querySelector(".page-meta");
-      if (pageMeta) pageMeta.textContent = t.disclaimer;
+        renderWelcome();
+      };
 
-      const empty = document.getElementById("empty-state");
-      if (empty) empty.textContent = t.empty;
+      /* AUTO-EXPANDING TEXTAREA */
+      const textarea = document.getElementById("question");
 
-      if (sendBtn) sendBtn.textContent = t.sendLabel;
-
-      document.title = t.titleMain;
-    }
-
-    const langToggle = document.getElementById("lang-toggle");
-    if (langToggle) {
-      langToggle.addEventListener("click", () => {
-        currentLang = currentLang === "zh" ? "en" : "zh";
-        applyLanguage();
+      textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+        document.getElementById("history").style.paddingBottom =
+          textarea.scrollHeight + 60 + "px";
       });
-    }
 
-    applyLanguage();
-  </script>
-</body>
+      /* SOURCE CARDS RENDERING */
+      function renderSources(sources) {
+        if (!sources || !sources.length) return "";
+
+        return sources
+          .map(
+            src => `
+              <div class="source-card">
+                <div class="source-card-title">${
+                  src.name || "信息来源"
+                }</div>
+                ${
+                  src.note
+                    ? `<div class="source-card-note">${src.note}</div>`
+                    : ""
+                }
+                ${
+                  src.url
+                    ? `<a class="source-card-link" href="${src.url}" target="_blank">查看来源</a>`
+                    : ""
+                }
+              </div>
+            `
+          )
+          .join("");
+      }
+    </script>
+  </body>
 </html>
