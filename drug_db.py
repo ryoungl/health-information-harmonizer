@@ -2,121 +2,130 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any, Optional, Tuple
 
 # Project root and default OTC database path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OTC_DB_PATH = os.path.join(BASE_DIR, "data", "otc_db.json")
 
 
+# ---------------------------------------------------------------------------
+# Loading and indexing
+# ---------------------------------------------------------------------------
+
 def load_otc_db() -> List[Dict[str, Any]]:
     """Load the local OTC drug database and perform minimal structural validation."""
     with open(OTC_DB_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
+
     if not isinstance(data, list):
-        raise ValueError("The top level of otc_db.json must be a list.")
+        raise ValueError("OTC DB must be a list of records.")
+
+    for entry in data:
+        if not isinstance(entry, dict):
+            raise ValueError("Each OTC DB entry must be a dict.")
+        if "base_name" not in entry or "generic_name" not in entry:
+            raise ValueError("Each entry must contain 'base_name' and 'generic_name'.")
+
     return data
 
 
-def is_chinese(s: str) -> bool:
-    """Heuristic check to see if a string contains Chinese characters."""
-    for ch in s:
-        if "\u4e00" <= ch <= "\u9fff":
-            return True
-    return False
-
-
-# Preload database at module import time.
 OTC_DB: List[Dict[str, Any]] = load_otc_db()
 
-# In-memory indexes for fast lookups
-GENERIC_INDEX: Dict[str, List[Dict[str, Any]]] = {}
-BASE_INDEX: Dict[str, List[Dict[str, Any]]] = {}
 
-# All name variants that can be used for matching:
-#   key: normalized name (lowercase for non-Chinese, raw for Chinese)
-#   value: list of drug records
-NAME_VARIANTS: Dict[str, List[Dict[str, Any]]] = {}
+def _normalize_name(name: str) -> str:
+    """Normalize a drug name for matching (lowercase, strip whitespace)."""
+    return (name or "").strip().lower()
 
 
-def _normalize_name_for_index(name: str) -> str:
-    """Normalize names: keep Chinese unchanged; lowercase all non-Chinese."""
-    if not name:
-        return ""
-    if is_chinese(name):
-        return name
-    return name.lower()
+def _build_name_index(
+    db: List[Dict[str, Any]]
+) -> List[Tuple[str, Dict[str, Any]]]:
+    """
+    Build a flat index of (normalized_name, drug_entry).
 
+    Names include:
+      - generic_name
+      - base_name
+      - aliases (if present)
+    """
+    index: List[Tuple[str, Dict[str, Any]]] = []
 
-def build_indexes() -> None:
-    """Build in-memory indexes from OTC_DB for fast lookup and aggregation."""
-    GENERIC_INDEX.clear()
-    BASE_INDEX.clear()
-    NAME_VARIANTS.clear()
+    for entry in db:
+        base_name = _normalize_name(entry.get("base_name", ""))
+        generic_name = _normalize_name(entry.get("generic_name", ""))
 
-    for drug in OTC_DB:
-        generic_name = drug.get("generic_name", "")
-        base_name = drug.get("base_name", "")
-        aliases: List[str] = drug.get("aliases", []) or []
-
-        # Index by generic_name
+        names = []
         if generic_name:
-            GENERIC_INDEX.setdefault(generic_name, []).append(drug)
+            names.append(generic_name)
+        if base_name and base_name != generic_name:
+            names.append(base_name)
 
-        # Index by base_name
-        if base_name:
-            BASE_INDEX.setdefault(base_name, []).append(drug)
-
-        # All available name variants: generic_name + aliases.
-        all_names = set()
-        if generic_name:
-            all_names.add(generic_name)
+        aliases = entry.get("aliases") or []
         for alias in aliases:
-            if alias:
-                all_names.add(alias)
+            if isinstance(alias, str):
+                n = _normalize_name(alias)
+                if n:
+                    names.append(n)
 
-        for name in all_names:
-            key = _normalize_name_for_index(name)
-            if not key:
-                continue
-            NAME_VARIANTS.setdefault(key, []).append(drug)
+        # de-duplicate
+        seen = set()
+        unique_names = []
+        for n in names:
+            if n not in seen:
+                seen.add(n)
+                unique_names.append(n)
 
+        for n in unique_names:
+            index.append((n, entry))
 
-# Build indexes eagerly when the module is imported
-build_indexes()
-
-
-def find_preps_by_generic_name(name: str) -> List[Dict[str, Any]]:
-    """Exact lookup by generic name, e.g. 'Ibuprofen SR tablets'."""
-    return GENERIC_INDEX.get(name, [])
-
-
-def find_preps_by_base_name(base_name: str) -> List[Dict[str, Any]]:
-    """Lookup all preparations under a base_name, e.g. 'Ibuprofen' → tablets, SR tablets, oral suspension."""
-    return BASE_INDEX.get(base_name, [])
+    return index
 
 
-def list_all_bases() -> List[str]:
-    """Return all base_name keys, useful for debugging or feeding UI dropdowns."""
-    return sorted(BASE_INDEX.keys())
+NAME_INDEX: List[Tuple[str, Dict[str, Any]]] = _build_name_index(OTC_DB)
+
+
+# ---------------------------------------------------------------------------
+# Matching helpers
+# ---------------------------------------------------------------------------
+
+def _build_word_boundary_pattern(name: str) -> re.Pattern:
+    """
+    Build a regex that matches the name as a whole word or token.
+
+    This is a simple heuristic:
+      - Case-insensitive
+      - Allows punctuation / whitespace around the name
+    """
+    escaped = re.escape(name)
+    pattern = rf"(?<!\w){escaped}(?!\w)"
+    return re.compile(pattern, flags=re.IGNORECASE)
 
 
 def _match_single_name_in_text(text: str, name: str) -> bool:
-    """Match a single name in text with language-aware case handling."""
-    if not name:
-        return False
-    if is_chinese(name):
-        return name in text
-    # For non-Chinese names, match case-insensitively
-    return name.lower() in text.lower()
+    """
+    Return True if the given name appears in text with loose word boundaries.
 
+    For English this helps avoid matching 'tan' inside 'tangent'.
+    For Chinese this still behaves nicely because there is no word boundary.
+    """
+    if not name or len(name) < 2:
+        return False
+
+    pattern = _build_word_boundary_pattern(name)
+    return bool(pattern.search(text))
+
+
+# ---------------------------------------------------------------------------
+# Public query functions
+# ---------------------------------------------------------------------------
 
 def find_drugs_in_text_raw(text: str) -> List[Dict[str, Any]]:
     """
-    Match all configured name variants in a text.
+    Find all preparations mentioned in the text.
 
-    Returns raw preparation records without grouping by base_name.
-    Supports Chinese names and English/brand aliases.
+    Returns raw preparation records (OTC_DB entries) without grouping.
     """
     text = text or ""
     if not text.strip():
@@ -125,75 +134,110 @@ def find_drugs_in_text_raw(text: str) -> List[Dict[str, Any]]:
     matched: List[Dict[str, Any]] = []
     seen_ids = set()
 
-    for key_name, drugs in NAME_VARIANTS.items():
-        for drug in drugs:
-            generic_name = drug.get("generic_name", "")
-            aliases: List[str] = drug.get("aliases", []) or []
-
-            # Avoid adding duplicates.
-            identity = id(drug)
-            if identity in seen_ids:
-                continue
-
-            # Try matching using generic name and aliases one by one.
-            candidates = []
-            if generic_name:
-                candidates.append(generic_name)
-            candidates.extend(aliases)
-
-            if any(_match_single_name_in_text(text, n) for n in candidates):
-                matched.append(drug)
-                seen_ids.add(identity)
+    for name, entry in NAME_INDEX:
+        if id(entry) in seen_ids:
+            continue
+        if _match_single_name_in_text(text, name):
+            matched.append(entry)
+            seen_ids.add(id(entry))
 
     return matched
 
 
-def group_by_base(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def group_by_base(preps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Group drug records by their base_name.
+    Group preparation entries by base_name so that different
+    products for the same ingredient are aggregated.
 
-    Input: list of specific preparation records.
-    Output:
-    [
-    {
-        "base_name": "Ibuprofen",
-        "preparations": [ {...}, ... ]
-    }
-    ]
+    Returns a list of dicts:
+
+      {
+        "base_name": str,
+        "generic_name": str,
+        "aliases": [str],
+        "preps": [original_entry, ...]
+      }
     """
+    groups: Dict[str, Dict[str, Any]] = {}
 
-    grouped: Dict[str, List[Dict[str, Any]]] = {}
-    for drug in drugs:
-        base = drug.get("base_name") or drug.get("generic_name") or ""
-        if not base:
-            continue
-        grouped.setdefault(base, []).append(drug)
+    for prep in preps:
+        base = prep.get("base_name") or prep.get("generic_name") or ""
+        base_norm = _normalize_name(base)
 
-    result: List[Dict[str, Any]] = []
-    for base_name, preps in grouped.items():
-        result.append(
-            {
-                "base_name": base_name,
-                "preparations": preps,
+        if base_norm not in groups:
+            groups[base_norm] = {
+                "base_name": base,
+                "generic_name": prep.get("generic_name") or base,
+                "aliases": set(),   # temp set, convert to list later
+                "preps": [],
             }
-        )
+
+        group = groups[base_norm]
+        group["preps"].append(prep)
+
+        # collect aliases from all preps
+        aliases = prep.get("aliases") or []
+        for alias in aliases:
+            if isinstance(alias, str):
+                group["aliases"].add(alias)
+
+        # also include generic_name itself as an alias for convenience
+        if isinstance(prep.get("generic_name"), str):
+            group["aliases"].add(prep["generic_name"])
+
+    # finalize aliases sets into sorted lists
+    result: List[Dict[str, Any]] = []
+    for g in groups.values():
+        g["aliases"] = sorted(list(g["aliases"]))
+        result.append(g)
+
+    # optional: sort groups by base_name
+    result.sort(key=lambda x: x.get("base_name", ""))
     return result
 
 
 def find_drugs_in_text(text: str) -> List[Dict[str, Any]]:
     """
-    High level API:
+    High-level API for the LLM:
 
-    1. Match drug names in text using all name variants.
-    2. Group results by base_name so that different preparations of the same ingredient are aggregated.
+      1. Match drug names in text using all known name variants.
+      2. Group results by base_name so that different products of the same
+         ingredient are aggregated.
 
     The returned structure is designed to be passed directly to the LLM.
     """
-
     raw_matches = find_drugs_in_text_raw(text)
     return group_by_base(raw_matches)
 
+
+def find_preps_by_generic_name(name: str) -> List[Dict[str, Any]]:
+    """
+    Find all preparations whose generic_name or alias matches the given name.
+    """
+    name_norm = _normalize_name(name)
+    if not name_norm:
+        return []
+
+    matches: List[Dict[str, Any]] = []
+    for entry in OTC_DB:
+        g = _normalize_name(entry.get("generic_name", ""))
+        if g == name_norm:
+            matches.append(entry)
+            continue
+
+        aliases = entry.get("aliases") or []
+        for alias in aliases:
+            if isinstance(alias, str) and _normalize_name(alias) == name_norm:
+                matches.append(entry)
+                break
+
+    return matches
+
+
 def find_by_generic_name(name: str) -> Optional[Dict[str, Any]]:
+    """
+    Convenience helper: return the first preparation for a given generic name.
+    """
     preps = find_preps_by_generic_name(name)
     if preps:
         return preps[0]
