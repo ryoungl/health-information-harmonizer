@@ -9,3 +9,5 @@ env/
 *.log
 *.DS_Store
 .env
+scripts/build_otc_db_from_openfda.py
+scripts/make_en_db_from_zh.py
