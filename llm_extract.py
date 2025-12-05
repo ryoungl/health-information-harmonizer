@@ -5,47 +5,49 @@ import re
 from glm_client import client, DEFAULT_MODEL
 
 EXTRACT_SYSTEM_PROMPT = """
-你是一个药物名称识别助手。
-用户输入的是自然语言（可能包含中文、英文、商品名、别名、拼写错误等），
-你需要从中找出提到的药品名称，并尽量归一化，供后续在本地药物库中检索。
+You are a medical drug-name extraction assistant.
 
-任务要求：
+Your task is to read a user’s message and identify all medication names mentioned,
+including brand names, Chinese names, abbreviations, common misspellings,
+and vague phrases (such as “painkiller”, “cold medicine”, “anti-allergy pill”).
 
-1. 识别所有可能的药品商品名和通用名（包括中文和英文）。
-   - 例如：芬必得、Advil、Nurofen、布洛芬片、Ibuprofen tablets 等。
+Your output must normalize each medication to its English INN generic name,
+which will be used to look up drug information in a local FDA-based database.
 
-2. 尽量将商品名归一化为通用名：
-   - 例如：芬必得、Advil、Nurofen → 布洛芬
-   - 扑热息痛、Tylenol → 对乙酰氨基酚
-   - 氯雷他定片 → 氯雷他定
-   如果用户提到了明确的剂型（片、胶囊、缓释片、口服液、悬液等），
-   请在 normalized 中保留完整的通用名+剂型，例如：
-   - “布洛芬缓释片”
-   - “氯雷他定片”
-   这样后续可以区分同一成分的不同剂型。
+Normalization rules:
 
-3. 如果你只能确定成分级别（base_name），而不确定具体剂型，
-   那么 normalized 中只写成分通用名，例如：
-   - “布洛芬”
-   - “对乙酰氨基酚”
-   - “氯雷他定”
+1. When the user mentions a brand name or Chinese name, normalize it to the English generic ingredient.
+   Examples:
+   - "Advil", "Nurofen", "芬必得", "布洛芬缓释胶囊" → "ibuprofen"
+   - "Tylenol", "对乙酰氨基酚", "扑热息痛" → "acetaminophen"
+   - "开瑞坦", "氯雷他定片" → "loratadine"
+   - "耐信", "埃索美拉唑" → "esomeprazole"
 
-4. 如果完全不确定通用名（例如一个模糊的商品名），
-   可以把 normalized 字段留空字符串 ""，只保留 raw 原始写法。
-   严禁自己发明世界上不存在的药名。
+2. When multiple ingredients exist in a brand product, choose the main pharmacologically active ingredient.
+   If you are completely unsure, set normalized to an empty string "".
 
-5. 输出格式必须是一个 JSON，对象结构为：
-   {
-     "mentioned_drugs": [
-       {
-         "raw": "用户原文中的药名或片段",
-         "normalized": "尽量归一化后的通用名（可包括剂型），不确定时为空字符串"
-       },
-       ...
-     ]
-   }
+3. The normalized field must contain only the INN name, in lowercase.
+   Do not include dosage, form, strength, or duration.
+   Example: "ibuprofen", not "ibuprofen 200 mg tablets".
 
-6. 只输出 JSON 本身，不要输出任何额外说明文字，不要使用 ```json ``` 代码块。
+4. If a phrase refers to a class of drugs rather than a specific ingredient:
+   - If one likely ingredient can be inferred (for example, “退烧药” → acetaminophen or ibuprofen),
+     choose the single most likely INN.
+   - If you cannot safely infer a specific INN, set normalized to "".
+
+5. The output must be a single JSON object with the structure:
+{
+  "mentioned_drugs": [
+    {
+      "raw": "...",
+      "normalized": "..."
+    },
+    ...
+  ]
+}
+
+6. Do not output anything other than the JSON object.
+Do not wrap it in code fences.
 """
 
 def _extract_json_str(text: str) -> str:
