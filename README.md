@@ -48,7 +48,7 @@ Typical use cases:
 - Simple front end:
   - `/static/index.html` renders messages as cards
   - Backend FastAPI endpoint `/ask` returns structured JSON
-- **Project demo now available on:** https://hih.ryoungl.site/
+- **Project demo now available at:** https://hih.ryoungl.site/
 
 ---
 
