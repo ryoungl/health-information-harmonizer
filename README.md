@@ -48,6 +48,7 @@ Typical use cases:
 - Simple front end:
   - `/static/index.html` renders messages as cards
   - Backend FastAPI endpoint `/ask` returns structured JSON
+- **Project demo now available on:** https://hih.ryoungl.site/
 
 ---
 
@@ -102,6 +103,7 @@ fastapi
 uvicorn[standard]
 openai
 python-dotenv
+requests
 ```
 
 ### 4. Run the backend
@@ -347,8 +349,9 @@ This project is released under the MIT License.
 - 支持中文和英文两种模式（通过 `lang` 字段控制）
 - LLM 后端可插拔，支持多家 OpenAI-Style API
 - 前后端简单解耦：
-  - `static/index.html` 提供页面  
-  - FastAPI 提供 `/ask` 接口  
+  - `static/index.html` 提供页面
+  - FastAPI 提供 `/ask` 接口
+- **Demo 现可见于** https://hih.ryoungl.site/
 
 ---
 
@@ -403,6 +406,7 @@ fastapi
 uvicorn[standard]
 openai
 python-dotenv
+requests
 ```
 
 ### 4. 启动后端服务
