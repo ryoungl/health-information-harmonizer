@@ -1,90 +1,50 @@
 from typing import List, Dict
 import json
 import re
+import os
 
 from glm_client import client, DEFAULT_MODEL
 
+# Load whitelist once to save overhead and ensure local compliance
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WHITELIST_PATH = os.path.join(BASE_DIR, "common_generics_en.txt")
+
+def _load_whitelist() -> Set[str]:
+    if not os.path.exists(WHITELIST_PATH):
+        return set()
+    with open(WHITELIST_PATH, "r", encoding="utf-8-sig") as f:
+        return {line.strip().upper().replace('\ufeff', '') for line in f if line.strip()}
+
+GENERIC_WHITELIST = _load_whitelist()
+
+# Optimized prompt: Use examples instead of full list to save tokens
 EXTRACT_SYSTEM_PROMPT = """
 You are a medical drug-name extraction assistant.
+Identify medication and supplement names. Normalize to English generic (INN) in ALL CAPS.
 
-Your task is to read a user’s message and identify all medication names mentioned,
-including brand names, Chinese names, abbreviations, common misspellings,
-and vague phrases (such as “painkiller”, “cold medicine”, “anti-allergy pill”).
-
-Your output must normalize each medication to its English INN generic name,
-which will be used to look up drug information in a local FDA-based database.
-
-Normalization rules:
-
-1. When the user mentions a brand name or Chinese name, normalize it to the English generic ingredient.
-   Examples:
-   - "Advil", "Nurofen", "芬必得", "布洛芬缓释胶囊" → "ibuprofen"
-   - "Tylenol", "对乙酰氨基酚", "扑热息痛" → "acetaminophen"
-   - "开瑞坦", "氯雷他定片" → "loratadine"
-   - "耐信", "埃索美拉唑" → "esomeprazole"
-
-2. When multiple ingredients exist in a brand product, choose the main pharmacologically active ingredient.
-   If you are completely unsure, set normalized to an empty string "".
-
-3. The normalized field must contain only the INN name, in lowercase.
-   Do not include dosage, form, strength, or duration.
-   Example: "ibuprofen", not "ibuprofen 200 mg tablets".
-
-4. If a phrase refers to a class of drugs rather than a specific ingredient:
-   - If one likely ingredient can be inferred (for example, “退烧药” → acetaminophen or ibuprofen),
-     choose the single most likely INN.
-   - If you cannot safely infer a specific INN, set normalized to "".
-
-5. The output must be a single JSON object with the structure:
-{
-  "mentioned_drugs": [
-    {
-      "raw": "...",
-      "normalized": "..."
-    },
-    ...
-  ]
-}
-
-6. Do not output anything other than the JSON object.
-Do not wrap it in code fences.
+Rules:
+1. Examples: "维C" -> "ASCORBIC ACID", "阿司匹林" -> "ASPIRIN", "泰诺" -> "ACETAMINOPHEN".
+2. Normalized field: ALL UPPERCASE, generic name only, no dosage.
+3. If unsure, set normalized to "".
+4. Output ONLY a JSON object:
+{"mentioned_drugs": [{"raw": "...", "normalized": "..."}]}
 """
 
 def _extract_json_str(text: str) -> str:
-    """
-    Extract a JSON object from model output.
-
-    Accepts extra surrounding text or code fences and attempts to locate the first {...} block.
-    """
     if not text:
         raise ValueError("Model returned empty content.")
-
-    # Prefer direct parsing first.
     try:
         json.loads(text)
         return text
-    except Exception:
+    except:
         pass
-
-    # Use regex to find the first { ... } block, including newlines.
     m = re.search(r"\{[\s\S]*\}", text)
     if not m:
-        raise ValueError("No JSON object found in model output.")
+        raise ValueError("No JSON object found.")
     return m.group(0)
 
-
 def extract_drugs(question: str) -> List[Dict[str, str]]:
-    """
-    Extract drug mentions and normalized names from a user question.
-
-    Returns a list of {"raw": str, "normalized": str} items suitable for downstream lookup.
-    """
-
-    user_prompt = (
-        f"用户输入：{question}\n\n"
-        "请按之前说明，输出 JSON 对象，结构为：\n"
-        '{"mentioned_drugs": [{"raw": "...", "normalized": "..."}]}'
-    )
+    user_prompt = f"Input: {question}\nOutput JSON:"
 
     resp = client.chat.completions.create(
         model=DEFAULT_MODEL,
@@ -94,26 +54,28 @@ def extract_drugs(question: str) -> List[Dict[str, str]]:
         ],
         temperature=0
     )
-
     content = resp.choices[0].message.content
 
     try:
         json_str = _extract_json_str(content)
         data = json.loads(json_str)
         mentioned = data.get("mentioned_drugs", [])
-        # Defensive: ensure we only keep dict items with raw/normalized fields
+        
         result: List[Dict[str, str]] = []
         for item in mentioned:
-            if not isinstance(item, dict):
-                continue
             raw = str(item.get("raw", "")).strip()
-            norm = str(item.get("normalized", "")).strip()
-            if not raw and not norm:
-                continue
-            result.append({"raw": raw, "normalized": norm})
+            norm = str(item.get("normalized", "")).upper().strip()
+            
+            if not raw: continue
+            
+            # Local Validation: Only allow drugs present in your local text file
+            # This ensures LLM doesn't hallucinate facts not in your database
+            if norm in GENERIC_WHITELIST:
+                print(f"DEBUG: norm='{norm}', whitelist={GENERIC_WHITELIST}")
+                result.append({"raw": raw, "normalized": norm})
+            else:
+                # Mark as unrecognized for Case 2 fallback in main.py
+                result.append({"raw": raw, "normalized": ""})
         return result
-    except Exception as e:
-        # On any parsing error, return an empty list instead of failing the service.
-        # Enable logging here during debugging if needed.
-        # print("extract_drugs error:", e)
+    except:
         return []

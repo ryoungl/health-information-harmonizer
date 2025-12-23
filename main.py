@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles  # 新增
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Literal, Optional
 
@@ -45,146 +45,84 @@ def ask(query: Query):
         else "This answer harmonizes public health information for general reference only and does not replace professional diagnosis or treatment."
     )
 
-    # Handle empty question input.
     if not q:
-        msg = (
-            "请描述你看到的健康信息或你关心的问题。"
-            if lang == "zh"
-            else "Please describe the health information or concern you have."
-        )
-
+        msg = "请描述你看到的健康信息。" if lang == "zh" else "Please describe the health information."
         return {
-            "echo": q,
-            "matched_drugs": [],
-            "recognized_drugs": [],
-            "analysis": {"summary": msg},
-            "answer": msg,
-            "disclaimer": disclaimer,
-            "sources": []
+            "echo": q, "matched_drugs": [], "recognized_drugs": [],
+            "analysis": {"summary": msg}, "answer": msg,
+            "disclaimer": disclaimer, "sources": []
         }
 
-    # Extract drug names via LLM.
+    # 1. Extraction and Normalization
     extracted = extract_drugs(q)
-    normalized = [i.get("normalized") for i in extracted if i.get("normalized")]
-
+    # Collect all normalized names for frontend display
+    normalized_names = [item.get("normalized") for item in extracted if item.get("normalized")]
+    
     known = []
     unknown = []
 
     for item in extracted:
-        norm = item.get("normalized")
-        if norm:
-            info = find_by_generic_name(norm)
-            if info:
-                known.append(info)
-            else:
-                unknown.append(item.get("raw") or norm)
+        # norm_name is essential for database lookup
+        norm_name = item.get("normalized", "").strip().upper()
+        drug_info = find_by_generic_name(norm_name)
+        
+        if drug_info:
+            known.append(drug_info)
         else:
-            unknown.append(item.get("raw") or "")
+            # Fallback to raw text if normalization failed
+            unknown.append(item.get("raw") or norm_name)
 
-    # Case 1: recognized drug exists in local database.
+    # 2. Case 1: Match found in local DB
     if known:
         glm_answer = ask_glm(q, known, lang=lang)
-
         if unknown:
-            if lang == "zh":
-                glm_answer += (
-                    f"\n\n【额外提示】你还提到了未收录药物：{', '.join(set(unknown))}，建议咨询医生或药师。"
-                )
-            else:
-                glm_answer += (
-                    f"\n\n[Extra note] You also mentioned unlisted drugs: {', '.join(set(unknown))}. "
-                    f"Please consult a doctor or pharmacist."
-                )
-
-        # Sources — no URLs, no DB dependencies
-        if lang == "zh":
-            sources = [
-                {
-                    "name": "本地药物数据库",
-                    "note": f"匹配到药物：{', '.join(d['generic_name'] for d in known)}",
-                    "url": None
-                },
-                {
-                    "name": "AI 信息调和与解释",
-                    "note": "回答内容基于本地结构化药物信息及语言模型推理生成。",
-                    "url": None
-                }
-            ]
-        else:
-            sources = [
-                {
-                    "name": "Local Drug Database",
-                    "note": f"Matched drugs: {', '.join(d['generic_name'] for d in known)}",
-                    "url": None
-                },
-                {
-                    "name": "AI Harmonization",
-                    "note": "Answer generated using structured drug information and model reasoning.",
-                    "url": None
-                }
-            ]
+            note = f"\n\n【额外提示】未收录：{', '.join(set(unknown))}" if lang == "zh" else f"\n\n[Note] Unlisted: {', '.join(set(unknown))}"
+            glm_answer += note
 
         return {
             "echo": q,
             "matched_drugs": [d["generic_name"] for d in known],
-            "recognized_drugs": normalized,
-            "analysis": {"summary": glm_answer},
-            "answer": glm_answer,
-            "disclaimer": disclaimer,
-            "sources": sources
-        }
-
-    # Case 2: drugs recognized but none found in local database → fallback to LLM.
-    if unknown and not known:
-        # 让 LLM 正常解释这些药物，drug_info 列表传空
-        glm_answer = ask_glm(q, [], lang=lang)
-
-        # 追加一个轻度提示：本地库没结构化匹配，但已用通用医学知识解释
-        if lang == "zh":
-            glm_answer += (
-                f"\n\n【系统说明】检测到以下药物名称：{', '.join(set(unknown))}。"
-                f"这些名称未在本地结构化数据库中匹配到标准药物条目，我会基于通用医学资料和语境进行解释，仅作一般信息参考。"
-            )
-        else:
-            glm_answer += (
-                f"\n\n[System note] I detected the following drug names: {', '.join(set(unknown))}. "
-                f"They are not mapped to a structured local entry, so I responded based on general medical knowledge and context. "
-                f"This is for general information only."
-            )
-
-        return {
-            "echo": q,
-            "matched_drugs": [],
-            "recognized_drugs": normalized,
+            "recognized_drugs": normalized_names,
             "analysis": {"summary": glm_answer},
             "answer": glm_answer,
             "disclaimer": disclaimer,
             "sources": [
-                {
-                    "name": "AI 信息调和与解释" if lang == "zh" else "AI Harmonization",
-                    "note": (
-                        "回答内容基于通用医学资料和模型对别名/俗称的理解生成。"
-                        if lang == "zh"
-                        else "Answer generated from general medical knowledge and model understanding of aliases/nicknames."
-                    ),
-                    "url": None
-                }
+                {"name": "本地数据库" if lang=="zh" else "Local DB", "note": "匹配受控来源", "url": None},
+                {"name": "AI 调和解释" if lang=="zh" else "AI Harmonization", "note": "基于结构化数据生成", "url": None}
             ]
         }
 
-    # Case 3: no drug names recognized → general health-information harmonization.
-    msg = (
-        "未识别到药物名称。我可以帮助你调和网络上不同来源的健康信息，你可以继续补充细节。"
-        if lang == "zh"
-        else "No drug names recognized. I can help harmonize different sources of health information. "
-             "Please provide more details."
-    )
+    # 3. Case 2: Recognized but not in DB (Safety Guardrail)
+    if unknown:
+        recognized_list = ', '.join(set(unknown))
+        if lang == "zh":
+            glm_answer = (
+                f"系统识别到您询问的药物名称：{recognized_list}。\n\n"
+                "**安全提示**：该药物暂未收录于合规数据库中。AI 不会生成用药建议。\n\n"
+                "建议咨询医生或药剂师获取专业意见。"
+            )
+            source_note = "语义识别完成，但未匹配到受控数据源。"
+        else:
+            glm_answer = (
+                f"System identified: {recognized_list}.\n\n"
+                "**Safety Notice**: This drug is not in our verified database. AI will NOT generate medical advice."
+            )
+            source_note = "Semantic recognition complete, no controlled source matched."
+
+        return {
+            "echo": q,
+            "matched_drugs": [],
+            "recognized_drugs": normalized_names,
+            "analysis": {"summary": glm_answer},
+            "answer": glm_answer,
+            "disclaimer": disclaimer,
+            "sources": [{"name": "System Safety Guardrail", "note": source_note, "url": None}]
+        }
+
+    # 4. Case 3: No drug-like entities found
+    msg = "未识别到药物名称。" if lang == "zh" else "No drug names recognized."
     return {
-        "echo": q,
-        "matched_drugs": [],
-        "recognized_drugs": [],
-        "analysis": {"summary": msg},
-        "answer": msg,
-        "disclaimer": disclaimer,
-        "sources": []
+        "echo": q, "matched_drugs": [], "recognized_drugs": [],
+        "analysis": {"summary": msg}, "answer": msg,
+        "disclaimer": disclaimer, "sources": []
     }

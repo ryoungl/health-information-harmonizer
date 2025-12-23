@@ -55,15 +55,21 @@ elif PROVIDER == "deepseek":
         or "deepseek-chat"
     )
 
+elif PROVIDER == "gemini":
+    api_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
+    base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    default_model = "gemini-flash-latest"
+
 else:
     raise RuntimeError(f"Unsupported LLM_PROVIDER: {PROVIDER}")
 
+print(f"[*] 初始化 LLM 客户端: Provider={PROVIDER}, Model={default_model}, Base={base_url}")
+
 if not api_key:
-    raise RuntimeError("Missing API key for configured LLM provider")
+    raise RuntimeError(f"未找到 {PROVIDER} 的 API Key，请检查 .env 文件")
 
 client = OpenAI(api_key=api_key, base_url=base_url)
 DEFAULT_MODEL = default_model
-
 
 # System prompts for Chinese and English outputs
 SYSTEM_PROMPT_ZH = """
@@ -76,27 +82,19 @@ SYSTEM_PROMPT_ZH = """
    你需要先读懂英文内容，再用清晰的中文向用户解释，不得编造说明书中不存在的内容。
 4. 不诊断疾病、不给具体剂量、不提供个体化治疗方案。
 
-输出结构（HTML）：
+输出结构（Markdown）：
 
-<h3>你在关心什么</h3>
-<ul>
-  <li>…</li>
-</ul>
+### 你在关心什么
+- …
 
-<h3>信息调和与解释</h3>
-<ul>
-  <li>…</li>
-</ul>
+### 信息调和与解释
+- …
 
-<h3>潜在风险信号</h3>
-<ul>
-  <li>…</li>
-</ul>
+### 潜在风险信号
+- …
 
-<h3>可以考虑的下一步</h3>
-<ul>
-  <li>…</li>
-</ul>
+### 可以考虑的下一步
+- …
 
 禁止使用“你可以吃”“必须吃”“一定不能吃”等用药性结论。
 不输出标题为“声明”的段落，系统会在外层统一添加声明。
@@ -112,27 +110,19 @@ Your tasks:
    Do not invent indications, dosages, or contraindications not present in the source.
 4. Do NOT diagnose disease, give dosages, or provide individualized treatment plans.
 
-Required HTML structure:
+Required Markdown structure:
 
-<h3>What you are concerned about</h3>
-<ul>
-  <li>…</li>
-</ul>
+### What you are concerned about
+- …
 
-<h3>Information synthesis and explanation</h3>
-<ul>
-  <li>…</li>
-</ul>
+### Information synthesis and explanation
+- …
 
-<h3>Potential risk signals</h3>
-<ul>
-  <li>…</li>
-</ul>
+### Potential risk signals
+- …
 
-<h3>Possible next steps</h3>
-<ul>
-  <li>…</li>
-</ul>
+### Possible next steps
+- …
 
 Avoid phrases like “you can take”, “must take”, or “definitely cannot take”.
 Do NOT output a section titled “Disclaimer”; the system will add it externally.

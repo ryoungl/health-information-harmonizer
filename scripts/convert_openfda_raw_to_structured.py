@@ -107,6 +107,19 @@ def extract_from_label(label: Dict[str, Any], generic_fallback: str) -> Dict[str
     aliases.extend(brand_names)
     aliases.extend(substance_names)
 
+    # category
+    pharm_classes = []
+    for key in ["pharm_class_epc", "pharm_class_pe", "pharm_class_cs", "pharm_class_moa"]:
+        pharm_classes.extend(ensure_list(ofd.get(key)))
+
+    category = pharm_classes[0] if pharm_classes else ""
+
+    if category:
+        clean_cat = category.split('[')[0].strip().upper()
+        if clean_cat and clean_cat not in [a.upper() for a in aliases]:
+            aliases.append(clean_cat)
+            logger.debug(f"Added category alias: {clean_cat}")
+
     seen = set()
     alias_clean: List[str] = []
     for a in aliases:
@@ -118,13 +131,6 @@ def extract_from_label(label: Dict[str, Any], generic_fallback: str) -> Dict[str
             continue
         seen.add(low)
         alias_clean.append(a_norm)
-
-    # category
-    pharm_classes = []
-    for key in ["pharm_class_epc", "pharm_class_pe", "pharm_class_cs", "pharm_class_moa"]:
-        pharm_classes.extend(ensure_list(ofd.get(key)))
-
-    category = pharm_classes[0] if pharm_classes else ""
 
     # indications
     indications = []
@@ -153,9 +159,9 @@ def extract_from_label(label: Dict[str, Any], generic_fallback: str) -> Dict[str
     important_warnings = boxed if boxed else warnings
 
     return {
-        "base_name": base_name,
-        "generic_name": generic_name,
-        "aliases": alias_clean,
+        "base_name": generic_name.upper(),
+        "generic_name": generic_name.upper(),
+        "aliases": [a.upper() for a in alias_clean],
         "category": category,
         "indications": indications,
         "contraindications": contraindications,
@@ -191,10 +197,10 @@ def convert(verbose: bool = False) -> None:
 
         if not label:
             logger.warning("No label_raw for entry %d (generic_query=%s)", idx, generic_query)
-            generic_name = generic_query or "unknown"
+            generic_name = (generic_query or "UNKNOWN").upper()
             structured.append(
                 {
-                    "base_name": generic_name.lower(),
+                    "base_name": generic_name,
                     "generic_name": generic_name,
                     "aliases": [generic_name],
                     "category": "",

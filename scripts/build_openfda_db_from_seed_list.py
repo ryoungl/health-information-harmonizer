@@ -36,7 +36,7 @@ import requests
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 SEED_PATH = DATA_DIR / "common_generics_en.txt"
-OTC_DB_PATH = DATA_DIR / "otc_db.json"
+OTC_DB_PATH = DATA_DIR / "otc_db_openfda_raw.json"
 
 OPENFDA_LABEL_URL = "https://api.fda.gov/drug/label.json"
 OPENFDA_NDC_URL = "https://api.fda.gov/drug/ndc.json"

@@ -35,8 +35,21 @@ OTC_DB: List[Dict[str, Any]] = load_otc_db()
 
 
 def _normalize_name(name: str) -> str:
-    """Normalize a drug name for matching (lowercase, strip whitespace)."""
-    return (name or "").strip().lower()
+    """标准化名称：支持中文映射"""
+    if not name: return ""
+    
+    mapping = {
+        "维C": "vitamin c",
+        "维生素C": "vitamin c",
+        "维他命C": "vitamin c",
+        "布洛芬": "ibuprofen",
+        "对乙酰氨基酚": "acetaminophen",
+        "阿司匹林": "aspirin"
+    }
+    
+    n = name.strip().lower()
+
+    return mapping.get(n, n)
 
 
 def _build_name_index(
@@ -234,11 +247,33 @@ def find_preps_by_generic_name(name: str) -> List[Dict[str, Any]]:
     return matches
 
 
-def find_by_generic_name(name: str) -> Optional[Dict[str, Any]]:
-    """
-    Convenience helper: return the first preparation for a given generic name.
-    """
-    preps = find_preps_by_generic_name(name)
-    if preps:
-        return preps[0]
+def find_by_generic_name(name: str):
+    if not name:
+        return None
+
+    SYNONYMS = {
+        "维C": "VITAMIN C",
+        "维生素C": "VITAMIN C",
+        "维他命C": "VITAMIN C",
+        "ASCORBIC ACID": "VITAMIN C",
+        "布洛芬": "IBUPROFEN",
+        "对乙酰氨基酚": "ACETAMINOPHEN",
+        "阿司匹林": "ASPIRIN"
+    }
+
+    raw_name = name.strip()
+
+    search_name = SYNONYMS.get(raw_name, SYNONYMS.get(raw_name.upper(), raw_name.upper()))
+
+    for drug in OTC_DB:
+        if search_name == (drug.get("generic_name") or "").upper():
+            return drug
+        
+        aliases_upper = [str(a).upper() for a in drug.get("aliases", [])]
+        if search_name in aliases_upper:
+            return drug
+            
+        if search_name in (drug.get("base_name") or "").upper():
+            return drug
+
     return None
