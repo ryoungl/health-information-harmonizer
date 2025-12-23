@@ -39,9 +39,9 @@ def _normalize_name(name: str) -> str:
     if not name: return ""
     
     mapping = {
-        "维C": "vitamin c",
-        "维生素C": "vitamin c",
-        "维他命C": "vitamin c",
+        "维c": "vitamin c",
+        "维生素c": "vitamin c",
+        "维他命c": "vitamin c",
         "布洛芬": "ibuprofen",
         "对乙酰氨基酚": "acetaminophen",
         "阿司匹林": "aspirin"

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Set
 import json
 import re
 import os
@@ -68,10 +68,11 @@ def extract_drugs(question: str) -> List[Dict[str, str]]:
             
             if not raw: continue
             
-            # Local Validation: Only allow drugs present in your local text file
-            # This ensures LLM doesn't hallucinate facts not in your database
-            if norm in GENERIC_WHITELIST:
-                print(f"DEBUG: norm='{norm}', whitelist={GENERIC_WHITELIST}")
+            whitelist_enabled = bool(GENERIC_WHITELIST)
+
+            # Local Validation: Only enforce whitelist when it is present.
+            # If the whitelist file is missing/empty, allow the model output to proceed.
+            if (not whitelist_enabled) or norm in GENERIC_WHITELIST:
                 result.append({"raw": raw, "normalized": norm})
             else:
                 # Mark as unrecognized for Case 2 fallback in main.py
