@@ -45,6 +45,7 @@ Typical use cases:
   - OpenAI
   - Zhipu GLM (OpenAI-compatible endpoint)
   - DeepSeek and other OpenAI-compatible providers
+  - Gemini (via the Gemini OpenAI-compatible endpoint)
 - Simple front end:
   - `/static/index.html` renders messages as cards
   - Backend FastAPI endpoint `/ask` returns structured JSON
@@ -154,18 +155,10 @@ or
 https://hub.docker.com/r/ryoungl/health-information-harmonizer
 ```
 
-### Run in demo mode (LLM disabled)
-```bash
-docker run -p 8000:8000 ryoungl/health-information-harmonizer:latest
-```
-
-Open:
-```
-http://localhost:8000/docs
-```
+> The container loads LLM credentials at startup. Missing or invalid keys will cause the service to exit.
 
 ### Run with LLM enabled
-Create `.env`:
+Create `.env` next to where you run Docker:
 
 ```env
 LLM_PROVIDER=zhipu
@@ -176,7 +169,12 @@ LLM_MODEL=glm-4-flash
 
 Run:
 ```bash
-docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:latest
+docker run -p 8000:8000 --env-file .env ryoungl/health-information-harmonizer:latest
+```
+
+Open:
+```
+http://localhost:8000/docs
 ```
 
 ---
@@ -190,6 +188,7 @@ Supported providers (through OpenAI-style APIs):
 - `openai`
 - `zhipu`
 - `deepseek`
+- `gemini`
 
 ### Environment variables
 
@@ -197,17 +196,17 @@ The main variables are:
 
 | Variable       | Description                         | Example                            |
 |----------------|-------------------------------------|------------------------------------|
-| `LLM_PROVIDER` | Provider name                       | `openai`, `zhipu`, or `deepseek`   |
+| `LLM_PROVIDER` | Provider name                       | `openai`, `zhipu`, `deepseek`, `gemini`   |
 | `LLM_API_KEY`  | API key for the chosen provider     | `sk-...`                           |
 | `LLM_API_BASE` | Base URL for the API (optional)     | `https://api.openai.com/v1`        |
-| `LLM_MODEL`    | Model name (optional)              | `gpt-4.1-mini`, `glm-4-flash`     |
+| `LLM_MODEL`    | Model name (optional)              | `gpt-4.1-mini`, `glm-4-flash`, `gemini-flash-latest`     |
 
 There are also provider-specific fallbacks such as `OPENAI_API_KEY`, `ZHIPU_API_KEY`, and `DEEPSEEK_API_KEY`, but users are encouraged to use the generic names.
 
 ### `.env.example` template
 
 ```env
-# LLM provider: openai / zhipu / deepseek
+# LLM provider: openai / zhipu / deepseek / gemini
 LLM_PROVIDER=openai
 
 # Your API key
@@ -226,6 +225,10 @@ LLM_API_KEY=YOUR_API_KEY_HERE
 # For DeepSeek:
 # LLM_API_BASE=https://api.deepseek.com
 # LLM_MODEL=deepseek-chat
+
+# For Gemini:
+# LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai/
+# LLM_MODEL=gemini-flash-latest
 ```
 
 Actual base URLs and model names may change over time. Always refer to the official documentation of each provider.
@@ -457,12 +460,6 @@ http://127.0.0.1:8000
 https://hub.docker.com/r/ryoungl/health-information-harmonizer
 ```
 
-### Demo 模式（不启用 LLM）
-
-```bash
-docker run -p 8000:8000 ryoungl/health-information-harmonizer:latest
-```
-
 ### 启用 LLM
 准备 `.env`：
 
@@ -473,9 +470,16 @@ LLM_API_BASE=https://open.bigmodel.cn/api/paas/v4
 LLM_MODEL=glm-4-flash
 ```
 
+> 容器启动时会加载 LLM 凭据；如果缺失或错误，服务会直接退出。
+
 运行：
 ```bash
-docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:latest
+docker run -p 8000:8000 --env-file .env ryoungl/health-information-harmonizer:latest
+```
+
+然后访问：
+```
+http://localhost:8000/docs
 ```
 
 ---
@@ -490,22 +494,23 @@ docker run -p 8000:8000 --env-file .env ryoungl/hi-harmonizer:latest
 - OpenAI 官方  
 - 智谱 GLM（OpenAI 兼容通道）  
 - DeepSeek 等其他兼容服务  
+- Gemini（通过 Gemini 的 OpenAI 兼容接口）
 
 ### 关键环境变量
 
 | 变量名         | 作用                         | 示例                            |
 |----------------|------------------------------|---------------------------------|
-| `LLM_PROVIDER` | 提供商名称                   | `openai` / `zhipu` / `deepseek` |
+| `LLM_PROVIDER` | 提供商名称                   | `openai` / `zhipu` / `deepseek` / `gemini` |
 | `LLM_API_KEY`  | 对应提供商的 API Key         | `sk-...`                        |
 | `LLM_API_BASE` | 接口地址（可选）             | `https://api.openai.com/v1`     |
-| `LLM_MODEL`    | 模型名称（可选）             | `gpt-4.1-mini` / `glm-4-flash` |
+| `LLM_MODEL`    | 模型名称（可选）             | `gpt-4.1-mini` / `glm-4-flash` / `gemini-flash-latest` |
 
 项目中也兼容部分旧变量名（如 `OPENAI_API_KEY`、`ZHIPU_API_KEY` 等），但更推荐统一使用 `LLM_*` 形式。
 
 ### `.env.example` 示例
 
 ```env
-# LLM provider: openai / zhipu / deepseek
+# LLM provider: openai / zhipu / deepseek / gemini
 LLM_PROVIDER=openai
 
 # Your API key
@@ -524,6 +529,10 @@ LLM_API_KEY=YOUR_API_KEY_HERE
 # For DeepSeek:
 # LLM_API_BASE=https://api.deepseek.com
 # LLM_MODEL=deepseek-chat
+
+# For Gemini:
+# LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai/
+# LLM_MODEL=gemini-flash-latest
 ```
 
 不同厂商的 base_url 和模型名可能随时间变化，请以官方文档为准。
