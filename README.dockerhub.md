@@ -36,7 +36,7 @@ HIH supports multiple LLM providers through environment variables:
 
 | Variable       | Description                         |
 | -------------- | ----------------------------------- |
-| `LLM_PROVIDER` | `openai` or `zhipu` or `deepseek`   |
+| `LLM_PROVIDER` | `openai` or `zhipu` or `deepseek` or `gemini`   |
 | `LLM_API_KEY`  | API key for the selected provider   |
 | `LLM_API_BASE` | Optional, override default base URL |
 | `LLM_MODEL`    | Optional, override default model    |
@@ -74,6 +74,17 @@ LLM_PROVIDER=deepseek
 LLM_API_KEY=your_deepseek_key
 LLM_API_BASE=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
+```
+
+---
+
+### 4) Use Gemini (OpenAI-compatible endpoint)
+
+```env
+LLM_PROVIDER=gemini
+LLM_API_KEY=your_gemini_key
+LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-flash-latest
 ```
 
 ---
